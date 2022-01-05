@@ -1,22 +1,23 @@
 import math
 
 
-def calculate_executor(cluster_info):
-    final_no_executors, no_cores_per_executor, total_available_cores = calculate_executor_number(cluster_info)
-    no_executors_per_node = final_no_executors / cluster_info['no_of_nodes']
-    memory_per_executor = cluster_info['memory_per_node_gb'] / no_executors_per_node
+
+def calculate_yarn(yarn_info):
+    final_no_executors, no_cores_per_executor, total_available_cores = calculate_executor_number(yarn_info)
+    memory_per_executor = yarn_info['max_memory_per_executor']
     print('memory_per_executor:' + str(memory_per_executor))
     actual_memory_per_executor = memory_per_executor * 0.93  # 7% memory heap overhead or 85%
+    no_executors_per_node = total_available_cores / 5
     recommend_config = {"spark.executor.memory": math.floor(actual_memory_per_executor),
-                        "spark.executor.instances": math.ceil(no_executors_per_node),
+                        "spark.executor.instances": mat
                         "spark.executor.cores": math.ceil(no_cores_per_executor),
                         "spark.dynamicAllocation.enabled": "true",
                         "spark.shuffle.service.enabled": "true",
-                        "spark.dynamicAllocation.minExecutors": get_min_executors(cluster_info),
-                        "spark.dynamicAllocation.maxExecutors": get_max_executors(cluster_info),
+                        "spark.dynamicAllocation.minExecutors": get_min_executors(yarn_info),
+                        "spark.dynamicAllocation.maxExecutors": get_max_executors(yarn_info),
                         "spark.dynamicAllocation.initialExecutors": final_no_executors,
                         "spark.sql.shuffle.partitions_1": 3 * total_available_cores,
-                        "spark.sql.shuffle.partitions_2": calculate_shuffle_partition(cluster_info)
+                        "spark.sql.shuffle.partitions_2": calculate_shuffle_partition(yarn_info)
                         }
     print(recommend_config)
 
@@ -28,9 +29,8 @@ def calculate_shuffle_partition(cluster_info):
     return partitions
 
 
-def calculate_executor_number(cluster_info, no_cores_per_executor=5):  # 5 For good HDFS throughput
-    total_available_cores = (cluster_info['no_cores_per_node'] - 1) * cluster_info[
-        'no_of_nodes']  # Leave 1 core per node for Hadoop/yarn/os
+def calculate_executor_number(yarn_info, no_cores_per_executor= 5):  # 5 For good HDFS throughput
+    total_available_cores = yarn_info['total_avail_core']  # Leave 1 core per node for Hadoop/yarn/os
     no_available_executors = total_available_cores / no_cores_per_executor
     final_no_executors = no_available_executors - 1  # Leave 1 executor for yarn Application Manager
     return final_no_executors, no_cores_per_executor, total_available_cores
